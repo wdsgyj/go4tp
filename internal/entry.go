@@ -89,6 +89,10 @@ func compressAll(r *zip.ReadCloser, w *zip.Writer, key string, db *sql.DB) {
 }
 
 func writeErrorResult(w *zip.Writer, es []*result) error {
+	if len(es) == 0 {
+		return nil
+	}
+
 	buf := new(bytes.Buffer)
 	for i, e := range es {
 		fmt.Fprintf(buf, "(%d) %s: %v\n", i, e.name, e.e)
@@ -162,6 +166,7 @@ func compressOne(f *zip.File, k string, rs chan<- *result, db *sql.DB) {
 	err = row.Scan(&result.data)
 	// 已经从 DB 中获取到数据
 	if err == nil {
+		log.Println(f.Name, "数据库命中...")
 		rs <- result
 		return
 	}
