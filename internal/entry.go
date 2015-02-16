@@ -11,6 +11,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -137,6 +138,9 @@ func writeResult(r *result, w *zip.Writer, es *[]*result) {
 	}
 }
 
+// 数据库读写锁
+var rwlock = new(sync.RWMutex)
+
 func compressOne(f *zip.File, k string, rs chan<- *result, db *sql.DB) {
 	defer log.Println(f.Name, "处理完成...")
 	result := new(result)
@@ -172,8 +176,10 @@ func compressOne(f *zip.File, k string, rs chan<- *result, db *sql.DB) {
 	}
 
 	// 查找数据库
+	rwlock.RLock()
 	row := db.QueryRow("SELECT data FROM record WHERE md5=?;", md5Str)
 	err = row.Scan(&result.data)
+	rwlock.RUnlock()
 	// 已经从 DB 中获取到数据
 	if err == nil {
 		log.Println(f.Name, "数据库命中...")
@@ -192,7 +198,9 @@ func compressOne(f *zip.File, k string, rs chan<- *result, db *sql.DB) {
 
 	// 存入数据库
 	data := outBuf.Bytes()
+	rwlock.Lock()
 	_, err = db.Exec("INSERT INTO record (md5, data) values(?, ?);", md5Str, data)
+	rwlock.Unlock()
 	if err != nil {
 		// 数据库存入失败不影响大局，这里只是输出一句 Log
 		log.Println(err)
