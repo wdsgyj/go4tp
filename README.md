@@ -1,2 +1,2 @@
 # go4tp
-Golang Web Service for Tinypng
+Golang client code for Tinypng
