@@ -10,6 +10,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -157,6 +158,15 @@ func compressOne(f *zip.File, k string, rs chan<- *result, db *sql.DB) {
 	md5Str, err := copyAndMd5(bufReader, rawReader)
 	if err != nil {
 		result.e = err
+		rs <- result
+		return
+	}
+
+	// 过滤非 png 和 jpg 图片
+	lowername := strings.ToLower(result.name)
+	if !strings.HasSuffix(lowername, ".png") &&
+		!strings.HasSuffix(lowername, ".jpg") {
+		result.data = bufReader.Bytes() // 原样返回
 		rs <- result
 		return
 	}
