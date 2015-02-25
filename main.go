@@ -2,7 +2,7 @@
 package main
 
 import (
-	in "./internal"
+	in "github.com/wdsgyj/go4tp/internal"
 	"os"
 )
 
