@@ -5,6 +5,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"database/sql"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -21,23 +22,29 @@ func init() {
 }
 
 func Main(args []string) {
-	var zipFlag = stringFlag("zip", "", "输入的压缩文件，zip 格式")
-	var keyFlag = stringFlag("key", "", "tinypng 的 key")
-	var outFlag = stringFlag("o", "a.zip", "[可选]输出的压缩后的 zip 文件")
-	var dbFlag = stringFlag("db", "img.db", "[可选]缓存结果的 sqlite 数据库文件")
+	cmd := flag.NewFlagSet("tinypng", flag.ExitOnError)
 
-	err := parse(args)
+	var zipFlag = cmd.String("zip", "", "输入的压缩文件，zip 格式")
+	var keyFlag = cmd.String("key", "", "tinypng 的 key")
+	var outFlag = cmd.String("o", "a.zip", "[可选]输出的压缩后的 zip 文件")
+	var dbFlag = cmd.String("db", "img.db", "[可选]缓存结果的 sqlite 数据库文件")
+
+	err := cmd.Parse(args)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
 	if *keyFlag == "" {
-		log.Fatalln("You must input a tinypng's key to compress")
+		fmt.Println("You must input a tinypng's key to compress\n")
+		cmd.PrintDefaults()
+		os.Exit(1)
 	}
 
 	zipReader, err := zip.OpenReader(*zipFlag)
 	if err != nil {
-		log.Fatalln(err)
+		fmt.Println(err, "\n")
+		cmd.PrintDefaults()
+		os.Exit(1)
 	}
 	defer zipReader.Close()
 
