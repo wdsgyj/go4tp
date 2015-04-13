@@ -62,7 +62,7 @@ func upload(key string, r io.Reader, w io.Writer) error {
 		if err != nil {
 			return err
 		}
-		// 向 w 中写入压缩后的数据并求出 MD5 的值
+		// 向 w 中写入压缩后的数据
 		_, err = io.Copy(w, imgResp.Body)
 		if err != nil {
 			return err
