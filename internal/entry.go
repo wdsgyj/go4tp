@@ -85,11 +85,6 @@ func compressAll(r *zip.ReadCloser, w *zip.Writer, key string, db *sql.DB) {
 	errors := []*result{}
 
 	for _, f := range r.File {
-		// FixME 过滤 Mac 下的隐藏目录
-		if strings.Contains(f.Name, "__MACOSX") {
-			log.Println(f.Name, "忽略……")
-			continue
-		}
 		go compressOne(f, key, results, db)
 	}
 
@@ -157,7 +152,15 @@ func compressOne(f *zip.File, k string, rs chan<- *result, db *sql.DB) {
 	defer log.Println(f.Name, "处理完成...")
 	result := new(result)
 	result.name = f.Name
+
+	// 文件夹过滤
 	if result.isDir = f.FileInfo().IsDir(); result.isDir {
+		rs <- result
+		return
+	}
+
+	// 过滤 Mac 下的隐藏目录
+	if strings.Contains(f.Name, "__MACOSX") {
 		rs <- result
 		return
 	}
