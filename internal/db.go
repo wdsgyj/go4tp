@@ -22,6 +22,7 @@ func createRecordTable(db *sql.DB) error {
 		id INTEGER,
 		md5 TEXT,
 		data BLOB,
+		dest_md5 TEXT,
 		PRIMARY KEY (id, md5) ON CONFLICT IGNORE);`)
 
 	if err != nil {

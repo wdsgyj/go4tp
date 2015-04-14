@@ -202,9 +202,22 @@ func compressOne(f *zip.File, k string, rs chan<- *result, db *sql.DB) {
 		return
 	}
 
+	var count int
+	rwlock.RLock()
+	row = db.QueryRow("SELECT count(*) FROM record WHERE dest_md5=?;", md5Str)
+	err = row.Scan(&count)
+	rwlock.RUnlock()
+	// 已经是压缩过的图片
+	if err == nil && count > 0 {
+		log.Println(f.Name, "数据库命中...已经压缩过...")
+		result.data = bufReader.Bytes() // 原样返回
+		rs <- result
+		return
+	}
+
 	// 从网络中获取数据
 	outBuf := new(bytes.Buffer)
-	err = upload(k, bufReader, outBuf)
+	destMd5, err := upload(k, bufReader, outBuf)
 	if err != nil {
 		result.e = err
 		rs <- result
@@ -214,7 +227,7 @@ func compressOne(f *zip.File, k string, rs chan<- *result, db *sql.DB) {
 	// 存入数据库
 	data := outBuf.Bytes()
 	rwlock.Lock()
-	_, err = db.Exec("INSERT INTO record (md5, data) values(?, ?);", md5Str, data)
+	_, err = db.Exec("INSERT INTO record (md5, data, dest_md5) values(?, ?, ?);", md5Str, data, destMd5)
 	rwlock.Unlock()
 	if err != nil {
 		// 数据库存入失败不影响大局，这里只是输出一句 Log
