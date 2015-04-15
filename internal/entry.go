@@ -81,17 +81,28 @@ func compressAll(r *zip.ReadCloser, w *zip.Writer, key string, db *sql.DB) {
 	runtime.GOMAXPROCS(runtime.NumCPU() * 4)
 
 	size := len(r.File)
-	results := make(chan *result)
+	results := make(chan *result)  // 阻塞管道，因为不能多个 goroutine 同时写一个文件
 	errors := []*result{}
 
-	for _, f := range r.File {
-		go compressOne(f, key, results, db)
-	}
+	go func() {
+		// 信号量控制
+		semaphore := make(chan bool, 50)
+		for _, f := range r.File {
+			semaphore <- true // 如果放不进去，表明信号量已满需要等待
+			go func() {
+				compressOne(f, key, results, db)
+				<-semaphore // 执行任务完成，释放信号量
+			}()
+		}
+		close(semaphore) // 关闭信号量
+	}()
 
+	// 所有的写文件操作必须集中在一个 goroutine 中
 	for i := 0; i < size; i++ {
 		result := <-results
 		writeResult(result, w, &errors)
 	}
+	close(results)
 
 	writeErrorResult(w, errors)
 	log.Println("全部处理完成!")
@@ -148,7 +159,7 @@ func writeResult(r *result, w *zip.Writer, es *[]*result) {
 // 数据库读写锁
 var rwlock = new(sync.RWMutex)
 
-func compressOne(f *zip.File, k string, rs chan<- *result, db *sql.DB) {
+func compressOne(f *zip.File, k string, rs chan <- *result, db *sql.DB) {
 	defer log.Println(f.Name, "处理完成...")
 	result := new(result)
 	result.name = f.Name
@@ -161,6 +172,12 @@ func compressOne(f *zip.File, k string, rs chan<- *result, db *sql.DB) {
 
 	// 过滤 Mac 下的隐藏目录
 	if strings.Contains(f.Name, "__MACOSX") {
+		rs <- result
+		return
+	}
+
+	// 过滤 svn 目录
+	if strings.Contains(f.Name, ".svn") {
 		rs <- result
 		return
 	}
@@ -184,7 +201,7 @@ func compressOne(f *zip.File, k string, rs chan<- *result, db *sql.DB) {
 	// 过滤非 png 和 jpg 图片
 	lowername := strings.ToLower(result.name)
 	if !strings.HasSuffix(lowername, ".png") &&
-		!strings.HasSuffix(lowername, ".jpg") {
+	!strings.HasSuffix(lowername, ".jpg") {
 		result.data = bufReader.Bytes() // 原样返回
 		rs <- result
 		return
