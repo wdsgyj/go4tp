@@ -89,10 +89,10 @@ func compressAll(r *zip.ReadCloser, w *zip.Writer, key string, db *sql.DB) {
 		semaphore := make(chan bool, 50)
 		for _, f := range r.File {
 			semaphore <- true // 如果放不进去，表明信号量已满需要等待
-			go func() {
-				compressOne(f, key, results, db)
+			go func(file *zip.File) {
+				compressOne(file, key, results, db)
 				<-semaphore // 执行任务完成，释放信号量
-			}()
+			}(f)
 		}
 		close(semaphore) // 关闭信号量
 	}()
