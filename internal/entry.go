@@ -35,14 +35,16 @@ func Main(args []string) {
 	}
 
 	if *keyFlag == "" {
-		fmt.Println("You must input a tinypng's key to compress\n")
+		fmt.Println("You must input a tinypng's key to compress")
+		fmt.Println()
 		cmd.PrintDefaults()
 		os.Exit(1)
 	}
 
 	zipReader, err := zip.OpenReader(*zipFlag)
 	if err != nil {
-		fmt.Println(err, "\n")
+		fmt.Println(err)
+		fmt.Println()
 		cmd.PrintDefaults()
 		os.Exit(1)
 	}
